@@ -4,6 +4,10 @@ A movie discovery app with a **Streamlit** interface and a **FastAPI** backend. 
 
 **Author:** Arnab
 
+## Live Demo
+
+Try the deployed app: [Movie Recommender](https://semantic-scene.streamlit.app/)
+
 ## Features
 
 - Browse TMDB movie feeds: trending, popular, top rated, now playing, and upcoming.
