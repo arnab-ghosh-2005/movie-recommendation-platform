@@ -79,13 +79,14 @@ TMDB_API_KEY=replace_with_your_tmdb_api_key
 API_BASE=http://127.0.0.1:8000
 ```
 
-`API_BASE` is optional for local development; the frontend defaults to `http://127.0.0.1:8000`. It can be set to a deployed API URL when the frontend and backend run as separate services. The frontend reads it from `.env` locally or from Streamlit secrets in Community Cloud.
+`API_BASE` is optional for deployment; the frontend defaults to `https://movie-recommendation-platform-1.onrender.com`. For local development, set it to `http://127.0.0.1:8000` in `.env`. The frontend reads it from `.env` locally or from Streamlit secrets in Community Cloud; either setting overrides the default.
 
 Do not commit `.env` or publish your API key. The repository's `.gitignore` excludes `.env`.
 
 ## Run locally
 
 Run the backend and frontend in **separate terminals** from the project root, with the virtual environment activated in each.
+If packages were installed before updating `requirements.txt`, refresh the environment first with `python -m pip install -r requirements.txt` so FastAPI and Starlette use compatible versions.
 
 **Terminal 1 — FastAPI backend:**
 
@@ -133,7 +134,7 @@ Deploy the FastAPI backend as a **Web Service**:
 - **Start command:** `uvicorn main:app --host 0.0.0.0 --port $PORT`
 - **Environment variable:** `TMDB_API_KEY` set to your TMDB API key
 
-If you deploy the Streamlit frontend as a separate web service, set its `API_BASE` environment variable to the public URL of the FastAPI service, for example `https://your-api-service.onrender.com`. A suitable Streamlit start command is:
+If you deploy the Streamlit frontend as a separate web service, set its `API_BASE` environment variable to the public URL of the FastAPI service: `https://movie-recommendation-platform-1.onrender.com`. A suitable Streamlit start command is:
 
 ```bash
 streamlit run app.py --server.address 0.0.0.0 --server.port $PORT
@@ -143,10 +144,10 @@ The backend and frontend must be running as separate services (or processes). Wh
 
 ### Streamlit Community Cloud
 
-Community Cloud selects its Python version in the app's **Advanced settings**; the repository's `.python-version` file does not select it there. The current dependency pins support Python 3.14, as well as Python 3.11. To configure the frontend to use the deployed FastAPI backend, add this to the app's **Secrets** settings, replacing the example URL with your backend's public URL:
+Community Cloud selects its Python version in the app's **Advanced settings**; the repository's `.python-version` file does not select it there. The current dependency pins support Python 3.14, as well as Python 3.11. To configure the frontend to use the deployed FastAPI backend, add this to the app's **Secrets** settings:
 
 ```toml
-API_BASE = "https://your-api-service.onrender.com"
+API_BASE = "https://movie-recommendation-platform-1.onrender.com"
 ```
 
 Keep `TMDB_API_KEY` configured on the FastAPI backend service; the Streamlit frontend calls that service and does not need the key itself.

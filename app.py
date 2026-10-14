@@ -15,7 +15,9 @@ except StreamlitSecretNotFoundError:
     api_base_secret = None
 
 API_BASE = (
-    os.getenv("API_BASE") or api_base_secret or "http://127.0.0.1:8000"
+    os.getenv("API_BASE")
+    or api_base_secret
+    or "https://movie-recommendation-platform-1.onrender.com"
 ).rstrip("/")
 TMDB_IMG = "https://image.tmdb.org/t/p/w500"
 
