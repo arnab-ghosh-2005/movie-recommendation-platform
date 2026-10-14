@@ -3,12 +3,20 @@ import os
 import requests
 import streamlit as st
 from dotenv import load_dotenv
+from streamlit.errors import StreamlitSecretNotFoundError
 
 # =============================
 # CONFIG
 # =============================
 load_dotenv()
-API_BASE = (os.getenv("API_BASE") or "http://127.0.0.1:8000").rstrip("/")
+try:
+    api_base_secret = st.secrets.get("API_BASE")
+except StreamlitSecretNotFoundError:
+    api_base_secret = None
+
+API_BASE = (
+    os.getenv("API_BASE") or api_base_secret or "http://127.0.0.1:8000"
+).rstrip("/")
 TMDB_IMG = "https://image.tmdb.org/t/p/w500"
 
 st.set_page_config(page_title="Movie Recommender", page_icon="🎬", layout="wide")

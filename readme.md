@@ -42,7 +42,7 @@ Keep the four `.pkl` files in the project root: the API loads them when it start
 
 ## Requirements
 
-- Python **3.11.9** (or another Python 3.11 release)
+- Python **3.11.9** for Render, or the Python version selected for Streamlit Community Cloud (the dependencies support Python 3.14)
 - A TMDB API key
 - Git
 
@@ -79,7 +79,7 @@ TMDB_API_KEY=replace_with_your_tmdb_api_key
 API_BASE=http://127.0.0.1:8000
 ```
 
-`API_BASE` is optional for local development; the frontend defaults to `http://127.0.0.1:8000`. It can be set to a deployed API URL when the frontend and backend run as separate services.
+`API_BASE` is optional for local development; the frontend defaults to `http://127.0.0.1:8000`. It can be set to a deployed API URL when the frontend and backend run as separate services. The frontend reads it from `.env` locally or from Streamlit secrets in Community Cloud.
 
 Do not commit `.env` or publish your API key. The repository's `.gitignore` excludes `.env`.
 
@@ -140,6 +140,16 @@ streamlit run app.py --server.address 0.0.0.0 --server.port $PORT
 ```
 
 The backend and frontend must be running as separate services (or processes). When hosted separately, the browser uses the deployed Streamlit URL, while the frontend sends API requests to the URL configured in `API_BASE`.
+
+### Streamlit Community Cloud
+
+Community Cloud selects its Python version in the app's **Advanced settings**; the repository's `.python-version` file does not select it there. The current dependency pins support Python 3.14, as well as Python 3.11. To configure the frontend to use the deployed FastAPI backend, add this to the app's **Secrets** settings, replacing the example URL with your backend's public URL:
+
+```toml
+API_BASE = "https://your-api-service.onrender.com"
+```
+
+Keep `TMDB_API_KEY` configured on the FastAPI backend service; the Streamlit frontend calls that service and does not need the key itself.
 
 ## Credits
 
