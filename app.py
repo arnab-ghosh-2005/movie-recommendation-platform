@@ -24,15 +24,36 @@ TMDB_IMG = "https://image.tmdb.org/t/p/w500"
 st.set_page_config(page_title="Movie Recommender", page_icon="🎬", layout="wide")
 
 # =============================
-# STYLES (minimal modern)
+# STYLES
 # =============================
 st.markdown(
     """
 <style>
-.block-container { padding-top: 1rem; padding-bottom: 2rem; max-width: 1400px; }
-.small-muted { color:#6b7280; font-size: 0.92rem; }
-.movie-title { font-size: 0.9rem; line-height: 1.15rem; height: 2.3rem; overflow: hidden; }
-.card { border: 1px solid rgba(0,0,0,0.08); border-radius: 16px; padding: 14px; background: rgba(255,255,255,0.7); }
+.stApp {
+    background: radial-gradient(ellipse at top, #18243b 0%, #0b1120 48%, #080c15 100%);
+    color: #e5e7eb;
+}
+[data-testid="stHeader"] { background: transparent; }
+[data-testid="stSidebar"] { background: #0b1220; border-right: 1px solid #1d2940; }
+.block-container { max-width: 1440px; padding-top: 1.6rem; padding-bottom: 3rem; }
+h1, h2, h3 { letter-spacing: -0.035em; }
+[data-testid="stMarkdownContainer"] p { color: #dbe4f0; }
+[data-testid="stCaptionContainer"] { color: #a6b2c7; }
+[data-testid="stTextInput"] input {
+    background: #111a2b; border: 1px solid #34425d; border-radius: 12px;
+    min-height: 3rem; color: #f8fafc;
+}
+[data-testid="stTextInput"] input:focus { border-color: #f97316; box-shadow: 0 0 0 1px #f97316; }
+[data-testid="stVerticalBlockBorderWrapper"] {
+    border-color: #26344d; border-radius: 16px; background: rgba(15, 23, 42, 0.72);
+}
+.stButton > button {
+    background: #172237; border-color: #34425d; border-radius: 10px;
+    color: #e5e7eb; transition: all 150ms ease;
+}
+.stButton > button:hover { border-color: #fb923c; color: #fdba74; }
+.muted { color: #a6b2c7; }
+.eyebrow { color: #fb923c; font-size: .78rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
 </style>
 """,
     unsafe_allow_html=True,
@@ -45,6 +66,10 @@ if "view" not in st.session_state:
     st.session_state.view = "home"  # home | details
 if "selected_tmdb_id" not in st.session_state:
     st.session_state.selected_tmdb_id = None
+if "watchlist" not in st.session_state:
+    st.session_state.watchlist = {}
+if "home_section" not in st.session_state:
+    st.session_state.home_section = "Discover"
 
 qp_view = st.query_params.get("view")
 qp_id = st.query_params.get("id")
@@ -60,6 +85,16 @@ if qp_id:
 
 def goto_home():
     st.session_state.view = "home"
+    st.session_state.home_section = "Discover"
+    st.query_params["view"] = "home"
+    if "id" in st.query_params:
+        del st.query_params["id"]
+    st.rerun()
+
+
+def goto_watchlist():
+    st.session_state.view = "home"
+    st.session_state.home_section = "Watchlist"
     st.query_params["view"] = "home"
     if "id" in st.query_params:
         del st.query_params["id"]
@@ -72,6 +107,17 @@ def goto_details(tmdb_id: int):
     st.query_params["view"] = "details"
     st.query_params["id"] = str(int(tmdb_id))
     st.rerun()
+
+
+def toggle_watchlist(movie):
+    tmdb_id = movie.get("tmdb_id")
+    if not tmdb_id:
+        return
+    tmdb_id = int(tmdb_id)
+    if tmdb_id in st.session_state.watchlist:
+        del st.session_state.watchlist[tmdb_id]
+    else:
+        st.session_state.watchlist[tmdb_id] = movie
 
 
 # =============================
@@ -88,7 +134,7 @@ def api_get_json(path: str, params: dict | None = None):
         return None, f"Request failed: {e}"
 
 
-def poster_grid(cards, cols=6, key_prefix="grid"):
+def poster_grid(cards, cols=5, key_prefix="grid"):
     if not cards:
         st.info("No movies to show.")
         return
@@ -108,18 +154,42 @@ def poster_grid(cards, cols=6, key_prefix="grid"):
             poster = m.get("poster_url")
 
             with colset[c]:
-                if poster:
-                    st.image(poster, width="stretch", alt=f"Poster for {title}")
-                else:
-                    st.write("🖼️ No poster")
+                with st.container(border=True):
+                    if poster:
+                        st.image(poster, width="stretch")
+                    else:
+                        st.write("🎞️ Poster unavailable")
 
-                if st.button("Open", key=f"{key_prefix}_{r}_{c}_{idx}_{tmdb_id}"):
+                    st.text(title)
+                    release_date = m.get("release_date") or ""
+                    year = release_date[:4]
+                    rating = m.get("vote_average")
+                    rating_label = (
+                        f"★ {rating:.1f}"
+                        if isinstance(rating, (int, float)) and rating > 0
+                        else ""
+                    )
+                    metadata = [value for value in (year, rating_label) if value]
+                    if metadata:
+                        st.caption(" · ".join(metadata))
+
+                    if st.button(
+                        "Open",
+                        key=f"{key_prefix}_{r}_{c}_{idx}_{tmdb_id}",
+                        width="stretch",
+                    ):
+                        if tmdb_id:
+                            goto_details(tmdb_id)
+
                     if tmdb_id:
-                        goto_details(tmdb_id)
-
-                st.markdown(
-                    f"<div class='movie-title'>{title}</div>", unsafe_allow_html=True
-                )
+                        saved = int(tmdb_id) in st.session_state.watchlist
+                        if st.button(
+                            "♥ Saved" if saved else "♡ Save",
+                            key=f"watch_{key_prefix}_{r}_{c}_{idx}_{tmdb_id}",
+                            help="Remove from your watchlist" if saved else "Add to your watchlist",
+                            width="stretch",
+                        ):
+                            toggle_watchlist(m)
 
 
 def to_cards_from_tfidf_items(tfidf_items):
@@ -167,6 +237,7 @@ def parse_tmdb_search_to_cards(data, keyword: str, limit: int = 24):
                     "title": title,
                     "poster_url": f"{TMDB_IMG}{poster_path}" if poster_path else None,
                     "release_date": m.get("release_date", ""),
+                    "vote_average": m.get("vote_average"),
                 }
             )
 
@@ -186,6 +257,7 @@ def parse_tmdb_search_to_cards(data, keyword: str, limit: int = 24):
                     "title": title,
                     "poster_url": poster_url,
                     "release_date": m.get("release_date", ""),
+                    "vote_average": m.get("vote_average"),
                 }
             )
     else:
@@ -206,82 +278,114 @@ def parse_tmdb_search_to_cards(data, keyword: str, limit: int = 24):
 
     # Cards = top N
     cards = [
-        {"tmdb_id": x["tmdb_id"], "title": x["title"], "poster_url": x["poster_url"]}
+        {
+            "tmdb_id": x["tmdb_id"],
+            "title": x["title"],
+            "poster_url": x["poster_url"],
+            "release_date": x.get("release_date", ""),
+            "vote_average": x.get("vote_average"),
+        }
         for x in final_list[:limit]
     ]
     return suggestions, cards
 
 
 # =============================
-# SIDEBAR (clean)
+# SIDEBAR
 # =============================
 with st.sidebar:
-    st.markdown("## 🎬 Menu")
+    st.markdown("## 🎬 Reel Finder")
     if st.button("🏠 Home"):
         goto_home()
+    if st.button("♡ Watchlist"):
+        goto_watchlist()
 
     st.markdown("---")
-    st.markdown("### 🏠 Home Feed (only home)")
+    st.markdown("### Discover")
     home_category = st.selectbox(
         "Category",
         ["trending", "popular", "top_rated", "now_playing", "upcoming"],
         index=0,
     )
-    grid_cols = st.slider("Grid columns", 4, 8, 6)
+    grid_cols = st.slider("Grid columns", 3, 6, 5)
+    st.caption("Your watchlist is saved for this browsing session.")
 
 # =============================
 # HEADER
 # =============================
-st.title("🎬 Movie Recommender")
 st.markdown(
-    "<div class='small-muted'>Type keyword → dropdown suggestions + matching results → open → details + recommendations</div>",
+    "<div class='eyebrow'>Your next movie starts here</div>",
     unsafe_allow_html=True,
 )
-st.divider()
+st.title("Find a film worth staying in for.")
+st.markdown(
+    "<p class='muted'>Search the movie universe, save your picks, and discover "
+    "what to watch next.</p>",
+    unsafe_allow_html=True,
+)
 
 # ==========================================================
 # VIEW: HOME
 # ==========================================================
 if st.session_state.view == "home":
-    typed = st.text_input(
-        "Search by movie title (keyword)", placeholder="Type: avenger, batman, love..."
-    )
+    with st.container(border=True):
+        typed = st.text_input(
+            "Search by movie title",
+            placeholder="Try Dune, Batman, or The Godfather",
+            key="movie_search",
+        )
+        st.caption(
+            "Start typing to see movie suggestions. "
+            "Choose a suggestion to open its details."
+        )
 
-    st.divider()
-
-    # SEARCH MODE (Autocomplete + word-match results)
-    if typed.strip():
-        if len(typed.strip()) < 2:
-            st.caption("Type at least 2 characters for suggestions.")
+    if st.session_state.home_section == "Watchlist":
+        st.markdown("### Your watchlist")
+        saved_movies = list(st.session_state.watchlist.values())
+        if saved_movies:
+            poster_grid(saved_movies, cols=grid_cols, key_prefix="watchlist")
         else:
-            data, err = api_get_json("/tmdb/search", params={"query": typed.strip()})
+            st.info(
+                "Your watchlist is empty. Save movies from Discover to keep them "
+                "here for this session."
+            )
+        st.stop()
+
+    # SEARCH MODE (live suggestions below the search field)
+    if typed.strip():
+        query = typed.strip()
+        if len(query) < 2:
+            st.caption("Enter at least 2 characters to search.")
+        else:
+            data, err = api_get_json("/tmdb/search", params={"query": query})
 
             if err or data is None:
                 st.error(f"Search failed: {err}")
             else:
-                suggestions, cards = parse_tmdb_search_to_cards(
-                    data, typed.strip(), limit=24
-                )
+                suggestions, cards = parse_tmdb_search_to_cards(data, query, limit=24)
 
-                # Dropdown
                 if suggestions:
-                    labels = ["-- Select a movie --"] + [s[0] for s in suggestions]
-                    selected = st.selectbox("Suggestions", labels, index=0)
-
-                    if selected != "-- Select a movie --":
-                        # map label -> id
-                        label_to_id = {s[0]: s[1] for s in suggestions}
-                        goto_details(label_to_id[selected])
+                    st.markdown("### Suggestions")
+                    with st.container(border=True):
+                        suggestion_cols = st.columns(2)
+                        for index, (label, tmdb_id) in enumerate(suggestions):
+                            with suggestion_cols[index % len(suggestion_cols)]:
+                                if st.button(
+                                    f"🎬  {label}",
+                                    key=f"suggestion_{tmdb_id}_{index}",
+                                    width="stretch",
+                                ):
+                                    goto_details(tmdb_id)
                 else:
-                    st.info("No suggestions found. Try another keyword.")
+                    st.info("No suggestions found. Try another movie title.")
 
-                st.markdown("### Results")
+                st.markdown("### Matching movies")
                 poster_grid(cards, cols=grid_cols, key_prefix="search_results")
 
         st.stop()
 
     # HOME FEED MODE
-    st.markdown(f"### 🏠 Home — {home_category.replace('_',' ').title()}")
+    st.markdown(f"### {home_category.replace('_', ' ').title()} movies")
 
     home_cards, err = api_get_json(
         "/home", params={"category": home_category, "limit": 24}
@@ -306,7 +410,7 @@ elif st.session_state.view == "details":
     # Top bar
     a, b = st.columns([3, 1])
     with a:
-        st.markdown("### 📄 Movie Details")
+        st.markdown("### Movie details")
     with b:
         if st.button("← Back to Home"):
             goto_home()
@@ -317,43 +421,50 @@ elif st.session_state.view == "details":
         st.error(f"Could not load details: {err or 'Unknown error'}")
         st.stop()
 
+    saved = tmdb_id in st.session_state.watchlist
+    if st.button(
+        "♥ Saved" if saved else "♡ Save to watchlist",
+        help="Toggle this movie in your watchlist",
+    ):
+        toggle_watchlist(
+            {
+                "tmdb_id": tmdb_id,
+                "title": data.get("title", "Untitled"),
+                "poster_url": data.get("poster_url"),
+                "release_date": data.get("release_date", ""),
+                "vote_average": data.get("vote_average"),
+            }
+        )
+        st.rerun()
+
     # Layout: Poster LEFT, Details RIGHT
     left, right = st.columns([1, 2.4], gap="large")
 
     with left:
-        st.markdown("<div class='card'>", unsafe_allow_html=True)
-        if data.get("poster_url"):
-            st.image(
-                data["poster_url"],
-                width="stretch",
-                alt=f"Poster for {data.get('title', 'selected movie')}",
-            )
-        else:
-            st.write("🖼️ No poster")
-        st.markdown("</div>", unsafe_allow_html=True)
+        with st.container(border=True):
+            if data.get("poster_url"):
+                st.image(
+                    data["poster_url"],
+                    width="stretch",
+                )
+            else:
+                st.write("🎞️ Poster unavailable")
 
     with right:
-        st.markdown("<div class='card'>", unsafe_allow_html=True)
-        st.markdown(f"## {data.get('title','')}")
-        release = data.get("release_date") or "-"
-        genres = ", ".join([g["name"] for g in data.get("genres", [])]) or "-"
-        st.markdown(
-            f"<div class='small-muted'>Release: {release}</div>", unsafe_allow_html=True
-        )
-        st.markdown(
-            f"<div class='small-muted'>Genres: {genres}</div>", unsafe_allow_html=True
-        )
-        st.markdown("---")
-        st.markdown("### Overview")
-        st.write(data.get("overview") or "No overview available.")
-        st.markdown("</div>", unsafe_allow_html=True)
+        with st.container(border=True):
+            st.subheader(data.get("title") or "")
+            release = data.get("release_date") or "-"
+            genres = ", ".join([g["name"] for g in data.get("genres", [])]) or "-"
+            st.caption(f"Release: {release} · Genres: {genres}")
+            st.divider()
+            st.markdown("### Overview")
+            st.write(data.get("overview") or "No overview available.")
 
     if data.get("backdrop_url"):
         st.markdown("#### Backdrop")
         st.image(
             data["backdrop_url"],
             width="stretch",
-            alt=f"Backdrop for {data.get('title', 'selected movie')}",
         )
 
     st.divider()

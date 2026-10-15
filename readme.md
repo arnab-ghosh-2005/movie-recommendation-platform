@@ -11,7 +11,9 @@ Try the deployed app: [Movie Recommender](https://semantic-scene.streamlit.app/)
 ## Features
 
 - Browse TMDB movie feeds: trending, popular, top rated, now playing, and upcoming.
-- Search TMDB by keyword and choose from matching movie suggestions.
+- Search TMDB by keyword and open live movie suggestions shown beneath the search field.
+- Save movies to a session-only watchlist and revisit them while browsing.
+- Browse a refreshed dark-themed discovery page with poster, release year, and rating details.
 - View movie details, release date, genres, overview, poster, and backdrop.
 - Get content-based recommendations from a precomputed TF-IDF movie dataset.
 - Get genre-based recommendations from TMDB.
